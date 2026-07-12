@@ -69,17 +69,42 @@ def large_departments(cur):
     return cur.fetchall()
 
 
+def print_dashboard(cur):
+    print("=" * 36)
+    print("      EMPLOYEE ANALYTICS")
+    print("=" * 36)
+
+    print(f"\nTotal Employees : {total_employees(cur)}")
+
+    avg_sal, max_sal, min_sal, total_sal = salary_stats(cur)
+    print(f"Average Salary  : {avg_sal:,.0f}")
+    print(f"Highest Salary  : {max_sal:,.0f}")
+    print(f"Lowest Salary   : {min_sal:,.0f}")
+    print(f"Total Payroll   : {total_sal:,.0f}")
+
+    print("\n" + "-" * 36)
+    print("Employees Per Department\n")
+    for dept, count in employees_per_department(cur):
+        print(f"{dept:<12} {count}")
+
+    print("\n" + "-" * 36)
+    print("Average Salary Per Department\n")
+    for dept, avg in avg_salary_per_department(cur):
+        print(f"{dept:<12} {avg:,.0f}")
+
+    print("\n" + "-" * 36)
+    print("Distinct Cities\n")
+    for (city,) in distinct_cities(cur):
+        print(city)
+
+    print("\n" + "=" * 36)
+
+
 if __name__ == "__main__":
     conn = get_connection()
     cur = conn.cursor()
 
-    print("Total Employees:", total_employees(cur))
-    print("Salary Stats (avg, max, min, sum):", salary_stats(cur))
-    print("Per Department:", employees_per_department(cur))
-    print("Avg Salary per Department:", avg_salary_per_department(cur))
-    print("City Distribution:", city_distribution(cur))
-    print("Distinct Cities:", distinct_cities(cur))
-    print("Departments with 3+ employees:", large_departments(cur))
+    print_dashboard(cur)
 
     cur.close()
     conn.close()
