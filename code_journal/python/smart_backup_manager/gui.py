@@ -1,132 +1,52 @@
 """
-Tkinter-based GUI for Smart Backup Manager.
+CustomTkinter-based GUI for Smart Backup Manager.
 """
 
-import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, font as tkfont
-from datetime import datetime
+import customtkinter as cctk
+from tkinter import messagebox
 import backup_core
 
+# Configure appearance
+cctk.set_appearance_mode("dark")
+cctk.set_default_color_theme("blue")
 
-# --- Color Palette ---
-
-COLORS = {
-    "bg_dark": "#1a1b2e",
-    "bg_sidebar": "#16172b",
-    "bg_panel": "#1e2040",
-    "bg_input": "#282a4a",
-    "accent": "#7c6fff",
-    "accent_hover": "#9b8aff",
-    "accent_success": "#4ade80",
-    "accent_error": "#f87171",
-    "accent_warning": "#fbbf24",
-    "text_primary": "#e2e8f0",
-    "text_secondary": "#94a3b8",
-    "text_muted": "#64748b",
-    "border": "#2d2f52",
-    "button_bg": "#2d2f52",
-    "button_hover": "#3b3d66",
-}
-
-
-# --- Application ---
-
-class SmartBackupApp:
-    """GUI application window."""
-
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Smart Backup Manager")
-        self.root.geometry("900x600")
-        self.root.minsize(750, 500)
-        self.root.configure(bg=COLORS["bg_dark"])
-
-        # Try setting window icon
-        try:
-            self.root.iconbitmap(default="")
-        except tk.TclError:
-            pass
-
-        self._setup_fonts()
-        self._setup_styles()
-        self._build_ui()
+class SmartBackupApp(cctk.CTk):
+    """Main CustomTkinter application window."""
+    def __init__(self):
+        super().__init__()
+        self.title("Smart Backup Manager")
+        self.geometry("950x620")
+        self.minsize(800, 520)
 
         # Center window
-        self.root.update_idletasks()
-        w = self.root.winfo_width()
-        h = self.root.winfo_height()
-        x = (self.root.winfo_screenwidth() // 2) - (w // 2)
-        y = (self.root.winfo_screenheight() // 2) - (h // 2)
-        self.root.geometry(f"+{x}+{y}")
+        self.update_idletasks()
+        w = self.winfo_width()
+        h = self.winfo_height()
+        x = (self.winfo_screenwidth() // 2) - (w // 2)
+        y = (self.winfo_screenheight() // 2) - (h // 2)
+        self.geometry(f"+{x}+{y}")
 
-    # --- Fonts & Styles ---
-
-    def _setup_fonts(self):
-        self.font_title = tkfont.Font(family="Segoe UI", size=14, weight="bold")
-        self.font_heading = tkfont.Font(family="Segoe UI", size=11, weight="bold")
-        self.font_body = tkfont.Font(family="Consolas", size=10)
-        self.font_button = tkfont.Font(family="Segoe UI", size=10)
-        self.font_status = tkfont.Font(family="Segoe UI", size=9)
-
-    def _setup_styles(self):
-        self.style = ttk.Style()
-        self.style.theme_use("clam")
-
-        # Scrollbar styling
-        self.style.configure(
-            "Custom.Vertical.TScrollbar",
-            background=COLORS["bg_panel"],
-            troughcolor=COLORS["bg_dark"],
-            arrowcolor=COLORS["text_secondary"],
-        )
-
-    # --- UI Construction ---
+        self._build_ui()
+        self._refresh_file_list()
 
     def _build_ui(self):
-        # Main container
-        self.main_frame = tk.Frame(self.root, bg=COLORS["bg_dark"])
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        # Grid layout: 1 row, 2 columns
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
 
-        self._build_sidebar()
-        self._build_content_area()
-        self._build_status_bar()
+        # 1. Left Sidebar
+        self.sidebar = cctk.CTkFrame(self, width=240, corner_radius=0)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar.grid_rowconfigure(11, weight=1) # Spacer row
 
-    def _build_sidebar(self):
-        sidebar = tk.Frame(
-            self.main_frame,
-            bg=COLORS["bg_sidebar"],
-            width=250,
-            padx=12,
-            pady=12,
-        )
-        sidebar.pack(side=tk.LEFT, fill=tk.Y)
-        sidebar.pack_propagate(False)
+        # Header Title
+        cctk.CTkLabel(
+            self.sidebar,
+            text="💾  Backup Manager",
+            font=cctk.CTkFont(family="Segoe UI", size=16, weight="bold")
+        ).grid(row=0, column=0, padx=20, pady=(20, 16), sticky="w")
 
-        # Sidebar header/title
-        title_frame = tk.Frame(sidebar, bg=COLORS["bg_sidebar"])
-        title_frame.pack(fill=tk.X, pady=(0, 20))
-
-        tk.Label(
-            title_frame,
-            text="💾",
-            font=tkfont.Font(size=24),
-            bg=COLORS["bg_sidebar"],
-            fg=COLORS["accent"],
-        ).pack()
-
-        tk.Label(
-            title_frame,
-            text="Smart Backup\nManager",
-            font=self.font_title,
-            bg=COLORS["bg_sidebar"],
-            fg=COLORS["text_primary"],
-            justify=tk.CENTER,
-        ).pack(pady=(4, 0))
-
-        # Divider line
-        tk.Frame(sidebar, bg=COLORS["border"], height=1).pack(fill=tk.X, pady=(0, 16))
-
-        # Menu buttons
+        # Sidebar Buttons
         buttons = [
             ("🏗️  Setup Workspace", self._on_setup),
             ("📂  Source Files", self._on_show_source),
@@ -139,318 +59,190 @@ class SmartBackupApp:
             ("📍  Backup Paths", self._on_backup_paths),
         ]
 
-        for text, command in buttons:
-            btn = tk.Button(
-                sidebar,
+        for idx, (text, cmd) in enumerate(buttons, start=1):
+            btn = cctk.CTkButton(
+                self.sidebar,
                 text=text,
-                font=self.font_button,
-                bg=COLORS["button_bg"],
-                fg=COLORS["text_primary"],
-                activebackground=COLORS["button_hover"],
-                activeforeground=COLORS["text_primary"],
-                relief=tk.FLAT,
-                anchor=tk.W,
-                padx=12,
-                pady=8,
-                cursor="hand2",
-                command=command,
+                anchor="w",
+                font=cctk.CTkFont(family="Segoe UI", size=12),
+                command=cmd
             )
-            btn.pack(fill=tk.X, pady=2)
+            btn.grid(row=idx, column=0, padx=15, pady=4, sticky="ew")
 
-            # Mouse hover effects
-            btn.bind("<Enter>", lambda e, b=btn: b.configure(bg=COLORS["button_hover"]))
-            btn.bind("<Leave>", lambda e, b=btn: b.configure(bg=COLORS["button_bg"]))
-
-        # Push bottom button down
-        tk.Frame(sidebar, bg=COLORS["bg_sidebar"]).pack(fill=tk.BOTH, expand=True)
-
-        # Reset log area
-        clear_btn = tk.Button(
-            sidebar,
+        # Clear Output button
+        self.clear_btn = cctk.CTkButton(
+            self.sidebar,
             text="🧹  Clear Output",
-            font=self.font_button,
-            bg=COLORS["accent"],
-            fg="#ffffff",
-            activebackground=COLORS["accent_hover"],
-            activeforeground="#ffffff",
-            relief=tk.FLAT,
-            padx=12,
-            pady=8,
-            cursor="hand2",
-            command=self._clear_output,
+            fg_color="gray30",
+            hover_color="gray40",
+            font=cctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            command=self._clear_output
         )
-        clear_btn.pack(fill=tk.X, pady=(8, 0))
-        clear_btn.bind("<Enter>", lambda e: clear_btn.configure(bg=COLORS["accent_hover"]))
-        clear_btn.bind("<Leave>", lambda e: clear_btn.configure(bg=COLORS["accent"]))
+        self.clear_btn.grid(row=12, column=0, padx=15, pady=(10, 20), sticky="ew")
 
-    def _build_content_area(self):
-        content = tk.Frame(self.main_frame, bg=COLORS["bg_dark"], padx=16, pady=16)
-        content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # 2. Main Content Area
+        self.content_frame = cctk.CTkFrame(self, fg_color="transparent")
+        self.content_frame.grid(row=0, column=1, sticky="nsew", padx=16, pady=16)
+        self.content_frame.grid_rowconfigure(2, weight=1) # Text box takes all free space
+        self.content_frame.grid_columnconfigure(0, weight=1)
 
-        # Log section header
-        header = tk.Frame(content, bg=COLORS["bg_dark"])
-        header.pack(fill=tk.X, pady=(0, 12))
+        # Toolbar Section: File Selector & Refresh Button
+        self.toolbar = cctk.CTkFrame(self.content_frame, fg_color="transparent")
+        self.toolbar.grid(row=0, column=0, sticky="ew", pady=(0, 12))
 
-        tk.Label(
-            header,
-            text="Output",
-            font=self.font_heading,
-            bg=COLORS["bg_dark"],
-            fg=COLORS["text_primary"],
-        ).pack(side=tk.LEFT)
+        cctk.CTkLabel(
+            self.toolbar,
+            text="Active File:",
+            font=cctk.CTkFont(family="Segoe UI", size=12, weight="bold")
+        ).pack(side="left", padx=(0, 8))
 
-        self.timestamp_label = tk.Label(
-            header,
-            text="",
-            font=self.font_status,
-            bg=COLORS["bg_dark"],
-            fg=COLORS["text_muted"],
+        self.file_dropdown = cctk.CTkOptionMenu(
+            self.toolbar,
+            values=["-- No files found --"],
+            width=220,
+            font=cctk.CTkFont(family="Segoe UI", size=12)
         )
-        self.timestamp_label.pack(side=tk.RIGHT)
+        self.file_dropdown.pack(side="left", padx=(0, 8))
 
-        # Scrollable console log area
-        output_frame = tk.Frame(content, bg=COLORS["bg_panel"])
-        output_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.output_text = tk.Text(
-            output_frame,
-            font=self.font_body,
-            bg=COLORS["bg_panel"],
-            fg=COLORS["text_primary"],
-            insertbackground=COLORS["text_primary"],
-            selectbackground=COLORS["accent"],
-            selectforeground="#ffffff",
-            relief=tk.FLAT,
-            padx=16,
-            pady=12,
-            wrap=tk.WORD,
-            state=tk.DISABLED,
-            borderwidth=0,
-            highlightthickness=1,
-            highlightbackground=COLORS["border"],
-            highlightcolor=COLORS["accent"],
+        self.refresh_btn = cctk.CTkButton(
+            self.toolbar,
+            text="🔄 Refresh",
+            width=80,
+            font=cctk.CTkFont(family="Segoe UI", size=12),
+            command=self._refresh_file_list
         )
+        self.refresh_btn.pack(side="left")
 
-        scrollbar = ttk.Scrollbar(
-            output_frame,
-            orient=tk.VERTICAL,
-            command=self.output_text.yview,
-            style="Custom.Vertical.TScrollbar",
+        # Header Info Row
+        header_row = cctk.CTkFrame(self.content_frame, fg_color="transparent")
+        header_row.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
+        cctk.CTkLabel(
+            header_row,
+            text="Console Logs",
+            font=cctk.CTkFont(family="Segoe UI", size=13, weight="bold")
+        ).pack(side="left")
+
+        # Scrollable console text area
+        self.output_textbox = cctk.CTkTextbox(
+            self.content_frame,
+            font=cctk.CTkFont(family="Consolas", size=11),
+            activate_scrollbars=True
         )
-        self.output_text.configure(yscrollcommand=scrollbar.set)
+        self.output_textbox.grid(row=2, column=0, sticky="nsew")
+        self.output_textbox.configure(state="disabled")
 
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.output_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Custom text tag colors
-        self.output_text.tag_configure("success", foreground=COLORS["accent_success"])
-        self.output_text.tag_configure("error", foreground=COLORS["accent_error"])
-        self.output_text.tag_configure("info", foreground=COLORS["accent"])
-        self.output_text.tag_configure("warning", foreground=COLORS["accent_warning"])
-        self.output_text.tag_configure("header", foreground=COLORS["text_primary"], font=self.font_heading)
-
-    def _build_status_bar(self):
-        self.status_bar = tk.Label(
-            self.root,
-            text="  Ready",
-            font=self.font_status,
-            bg=COLORS["bg_sidebar"],
-            fg=COLORS["text_secondary"],
-            anchor=tk.W,
-            padx=12,
-            pady=6,
+        # Status Bar Footer
+        self.status_bar = cctk.CTkLabel(
+            self.content_frame,
+            text="Ready",
+            anchor="w",
+            font=cctk.CTkFont(family="Segoe UI", size=11)
         )
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        self.status_bar.grid(row=3, column=0, sticky="ew", pady=(10, 0))
 
-    # --- Output helpers ---
+    # --- File List Handling ---
 
-    def _append_output(self, text, tag=None):
-        """Write message to console log."""
-        self.output_text.configure(state=tk.NORMAL)
-        if tag:
-            self.output_text.insert(tk.END, text + "\n", tag)
+    def _refresh_file_list(self):
+        """Fetch list of files in source_files and populate the option menu."""
+        files = backup_core.get_source_files()
+        if files:
+            self.file_dropdown.configure(values=files)
+            # Pick first file as active if current is default or not in list
+            current = self.file_dropdown.get()
+            if current not in files:
+                self.file_dropdown.set(files[0])
         else:
-            self.output_text.insert(tk.END, text + "\n")
-        self.output_text.see(tk.END)
-        self.output_text.configure(state=tk.DISABLED)
+            self.file_dropdown.configure(values=["-- No files found --"])
+            self.file_dropdown.set("-- No files found --")
 
-        # Update last run timestamp
-        now = datetime.now().strftime("%H:%M:%S")
-        self.timestamp_label.configure(text=f"Last update: {now}")
+    def _get_selected_file(self):
+        """Get the active file name from option menu."""
+        val = self.file_dropdown.get()
+        if val in ("", "-- No files found --"):
+            return None
+        return val
 
-    def _show_result(self, success, message, operation="Operation"):
-        """Show operation status."""
-        self._append_output(f"─── {operation} ───", "header")
-        tag = "success" if success else "error"
+    # --- Output Helpers ---
+
+    def _append_text(self, text):
+        self.output_textbox.configure(state="normal")
+        self.output_textbox.insert("end", text + "\n")
+        self.output_textbox.see("end")
+        self.output_textbox.configure(state="disabled")
+
+    def _show_result(self, success, message, title):
+        self._append_text(f"--- {title} ---")
         prefix = "✓" if success else "✗"
-        self._append_output(f"  {prefix} {message}", tag)
-        self._append_output("")  # blank line
+        self._append_text(f"  {prefix} {message}\n")
 
-        # Update footer text
-        status_text = f"  ✓ {operation} completed" if success else f"  ✗ {operation} failed"
-        status_color = COLORS["accent_success"] if success else COLORS["accent_error"]
-        self.status_bar.configure(text=status_text, fg=status_color)
+        status_msg = f"  ✓ {title} completed successfully." if success else f"  ✗ {title} failed."
+        status_color = "#4ade80" if success else "#f87171"
+        self.status_bar.configure(text=status_msg, text_color=status_color)
 
     def _clear_output(self):
-        """Clear console logs."""
-        self.output_text.configure(state=tk.NORMAL)
-        self.output_text.delete("1.0", tk.END)
-        self.output_text.configure(state=tk.DISABLED)
-        self.status_bar.configure(text="  Ready", fg=COLORS["text_secondary"])
-        self.timestamp_label.configure(text="")
+        self.output_textbox.configure(state="normal")
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.configure(state="disabled")
+        self.status_bar.configure(text="Ready", text_color="white")
 
-    def _ask_filename(self, title, action_label="select"):
-        """Show file selection dialog."""
-        files = backup_core.get_source_files()
-        if not files:
-            messagebox.showinfo("No Files", "No files found in source_files.")
-            return None
-
-        # Select file window
-        dialog = tk.Toplevel(self.root)
-        dialog.title(title)
-        dialog.geometry("350x400")
-        dialog.configure(bg=COLORS["bg_dark"])
-        dialog.transient(self.root)
-        dialog.grab_set()
-
-        # Center dialog window
-        dialog.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 175
-        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 200
-        dialog.geometry(f"+{x}+{y}")
-
-        selected = [None]
-
-        tk.Label(
-            dialog,
-            text=f"Select a file to {action_label}:",
-            font=self.font_heading,
-            bg=COLORS["bg_dark"],
-            fg=COLORS["text_primary"],
-        ).pack(pady=(16, 8), padx=16, anchor=tk.W)
-
-        # Scrollable list of files
-        listbox_frame = tk.Frame(dialog, bg=COLORS["bg_dark"])
-        listbox_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 8))
-
-        listbox = tk.Listbox(
-            listbox_frame,
-            font=self.font_body,
-            bg=COLORS["bg_panel"],
-            fg=COLORS["text_primary"],
-            selectbackground=COLORS["accent"],
-            selectforeground="#ffffff",
-            relief=tk.FLAT,
-            borderwidth=0,
-            highlightthickness=1,
-            highlightbackground=COLORS["border"],
-            highlightcolor=COLORS["accent"],
-            activestyle="none",
-        )
-        listbox.pack(fill=tk.BOTH, expand=True)
-
-        for f in files:
-            listbox.insert(tk.END, f"  {f}")
-
-        def on_select():
-            sel = listbox.curselection()
-            if sel:
-                selected[0] = files[sel[0]]
-            dialog.destroy()
-
-        def on_cancel():
-            dialog.destroy()
-
-        # Window buttons
-        btn_frame = tk.Frame(dialog, bg=COLORS["bg_dark"])
-        btn_frame.pack(fill=tk.X, padx=16, pady=(0, 16))
-
-        tk.Button(
-            btn_frame,
-            text=f"  {action_label.capitalize()}  ",
-            font=self.font_button,
-            bg=COLORS["accent"],
-            fg="#ffffff",
-            activebackground=COLORS["accent_hover"],
-            relief=tk.FLAT,
-            padx=16,
-            pady=6,
-            cursor="hand2",
-            command=on_select,
-        ).pack(side=tk.RIGHT, padx=(8, 0))
-
-        tk.Button(
-            btn_frame,
-            text="  Cancel  ",
-            font=self.font_button,
-            bg=COLORS["button_bg"],
-            fg=COLORS["text_primary"],
-            activebackground=COLORS["button_hover"],
-            relief=tk.FLAT,
-            padx=16,
-            pady=6,
-            cursor="hand2",
-            command=on_cancel,
-        ).pack(side=tk.RIGHT)
-
-        # Bind double-click handler
-        listbox.bind("<Double-Button-1>", lambda e: on_select())
-
-        dialog.wait_window()
-        return selected[0]
-
-    # --- Action handlers ---
+    # --- Button Callbacks ---
 
     def _on_setup(self):
         success, msg = backup_core.setup_workspace()
         self._show_result(success, msg, "Setup Workspace")
+        self._refresh_file_list()
 
     def _on_show_source(self):
         success, msg = backup_core.list_source_files()
         self._show_result(success, msg, "Source Files")
+        self._refresh_file_list()
 
     def _on_timestamp_backup(self):
-        filename = self._ask_filename("Timestamp Backup", "backup")
-        if filename is None:
+        fname = self._get_selected_file()
+        if not fname:
+            messagebox.showwarning("File Required", "Please select a file from the 'Active File' dropdown.")
             return
-        success, msg = backup_core.create_timestamp_backup(filename)
+
+        success, msg = backup_core.create_timestamp_backup(fname)
         self._show_result(success, msg, "Timestamp Backup")
 
     def _on_quick_copy(self):
-        filename = self._ask_filename("Quick Copy", "copy")
-        if filename is None:
+        fname = self._get_selected_file()
+        if not fname:
+            messagebox.showwarning("File Required", "Please select a file from the 'Active File' dropdown.")
             return
+
         overwrite = False
-        if backup_core.quick_copy_exists(filename):
+        if backup_core.quick_copy_exists(fname):
             overwrite = messagebox.askyesno(
-                "Copy Exists",
-                f"A quick copy of '{filename}' already exists.\n\nOverwrite it?",
+                "File Exists",
+                f"A quick copy of '{fname}' already exists in backups.\n\nDo you want to overwrite it?"
             )
             if not overwrite:
-                self.status_bar.configure(
-                    text="  Quick Copy cancelled", fg=COLORS["accent_warning"]
-                )
+                self.status_bar.configure(text="  Quick Copy cancelled.", text_color="#fbbf24")
                 return
-        success, msg = backup_core.create_quick_copy(filename, overwrite=overwrite)
+
+        success, msg = backup_core.create_quick_copy(fname, overwrite=overwrite)
         self._show_result(success, msg, "Quick Copy")
 
     def _on_move_file(self):
-        filename = self._ask_filename("Move File", "move")
-        if filename is None:
+        fname = self._get_selected_file()
+        if not fname:
+            messagebox.showwarning("File Required", "Please select a file from the 'Active File' dropdown.")
             return
+
         confirm = messagebox.askyesno(
             "Confirm Move",
-            f"Move '{filename}' to moved_files?\n\n"
-            "This will remove it from source_files.",
+            f"Are you sure you want to move '{fname}' to moved_files?\n\nThis deletes it from source_files."
         )
         if not confirm:
-            self.status_bar.configure(
-                text="  Move cancelled", fg=COLORS["accent_warning"]
-            )
+            self.status_bar.configure(text="  Move cancelled.", text_color="#fbbf24")
             return
-        success, msg = backup_core.move_file(filename)
+
+        success, msg = backup_core.move_file(fname)
         self._show_result(success, msg, "Move File")
+        self._refresh_file_list()
 
     def _on_show_backups(self):
         success, msg = backup_core.list_backup_files()
@@ -468,15 +260,9 @@ class SmartBackupApp:
         success, msg = backup_core.get_backup_paths()
         self._show_result(success, msg, "Backup Paths")
 
-
-# --- Entry Point ---
-
 def main():
-    """GUI entry point."""
-    root = tk.Tk()
-    SmartBackupApp(root)
-    root.mainloop()
-
+    app = SmartBackupApp()
+    app.mainloop()
 
 if __name__ == "__main__":
     main()
