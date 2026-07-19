@@ -35,7 +35,17 @@ CATEGORY_KEYWORDS = {
 }
 
 def load_and_clean(filepath):
-    df = pd.read_csv(filepath)
+    try:
+        df = pd.read_csv(filepath)
+    except FileNotFoundError:
+        print(f"Error: could not find '{filepath}'.")
+        return None
+    except pd.errors.EmptyDataError:
+        print(f"Error: '{filepath}' is empty.")
+        return None
+    except pd.errors.ParserError:
+        print(f"Error: '{filepath}' is not a valid CSV file.")
+        return None
 
     # Standardize the description text: strip whitespace, uppercase
     df["Description"] = df["Description"].str.strip().str.upper()
@@ -120,21 +130,108 @@ def month_over_month_change(summary):
     return summary
 
 
-if __name__ == "__main__":
+def find_unusual_transactions(df, month=None, threshold_multiplier=2.0):
+    # Flag spending transactions that are unusually large compared to
+    # the average spending transaction size (a simple anomaly detector).
+    spend_df = df[df["Amount"] < 0].copy()
+    if month:
+        spend_df = spend_df[spend_df["Month"] == month]
+
+    avg_transaction = spend_df["Amount"].abs().mean()
+    threshold = avg_transaction * threshold_multiplier
+
+    unusual = spend_df[spend_df["Amount"].abs() > threshold].copy()
+    unusual["TimesAverage"] = (unusual["Amount"].abs() / avg_transaction).round(1)
+    return unusual.sort_values("Amount")
+
+
+def print_report(df, month):
+    # Print the full formatted monthly report: summary, category
+    # breakdown, top merchants, and any unusual transactions.
+    summary = monthly_summary(df)
+    breakdown = category_breakdown(df, month=month)
+    merchants = top_merchants(df, month=month)
+    unusual = find_unusual_transactions(df, month=month)
+
+    print("=" * 38)
+    print(f"   MONTHLY SPENDING SUMMARY - {month}")
+    print("=" * 38)
+
+    if month in summary.index:
+        row = summary.loc[month]
+        print(f"\nTotal Income     : Rs. {row['Income']:,.0f}")
+        print(f"Total Spending   : Rs. {row['Spending']:,.0f}")
+        print(f"Net Savings      : Rs. {row['Net Savings']:,.0f}")
+
+    print("\n" + "-" * 38)
+    print("Spending by Category\n")
+    total_spend = breakdown.sum()
+    for category, amount in breakdown.items():
+        pct = (amount / total_spend * 100) if total_spend else 0
+        print(f"{category:<18} Rs. {amount:>10,.0f}   ({pct:4.1f}%)")
+
+    print("\n" + "-" * 38)
+    print("Top Merchants\n")
+    for merchant, amount in merchants.items():
+        print(f"{merchant:<28} Rs. {amount:>8,.0f}")
+
+    print("\n" + "-" * 38)
+    if len(unusual) > 0:
+        print("⚠️  Unusual Transactions Detected\n")
+        for _, row in unusual.iterrows():
+            print(
+                f"Rs. {abs(row['Amount']):,.0f} at \"{row['Description']}\" "
+                f"on {row['Date'].strftime('%B %d')} "
+                f"({row['TimesAverage']}x your average transaction)"
+            )
+    else:
+        print("No unusual transactions detected this month.")
+
+    print("\n" + "=" * 38)
+
+
+def menu():
+    # Interactive CLI menu for exploring the transaction data.
     df = load_and_clean(DATA_FILE)
+    if df is None:
+        return
+
     df = add_categories(df)
     df = add_month_column(df)
 
-    print("\n=== Monthly Summary ===")
-    summary = monthly_summary(df)
-    print(summary)
+    available_months = sorted(df["Month"].unique())
 
-    print("\n=== Month-over-Month Spending Change ===")
-    print(month_over_month_change(summary))
+    while True:
+        print("\nAvailable months:", ", ".join(available_months))
+        print("1. Full Monthly Report")
+        print("2. All Months Summary")
+        print("3. Category Breakdown (all time)")
+        print("4. Exit")
 
-    latest_month = df["Month"].max()
-    print(f"\n=== Category Breakdown for {latest_month} ===")
-    print(category_breakdown(df, month=latest_month))
+        choice = input("Choose an option: ").strip()
 
-    print(f"\n=== Top 5 Merchants for {latest_month} ===")
-    print(top_merchants(df, month=latest_month))
+        if not choice:
+            print("Invalid option, try again.")
+            continue
+
+        if choice == "1":
+            month = input(f"Enter month ({available_months[-1]} is most recent): ").strip()
+            if not month:
+                print("Invalid month.")
+                continue
+            if month not in available_months:
+                print("Invalid month.")
+                continue
+            print_report(df, month)
+        elif choice == "2":
+            print(monthly_summary(df))
+        elif choice == "3":
+            print(category_breakdown(df))
+        elif choice == "4":
+            break
+        else:
+            print("Invalid option, try again.")
+
+
+if __name__ == "__main__":
+    menu()
