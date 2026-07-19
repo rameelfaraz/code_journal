@@ -1,6 +1,6 @@
 """
-Personal Finance Tracker — Iteration 1
-Load and clean raw transaction data.
+Personal Finance Tracker 
+
 """
 
 import pandas as pd
@@ -76,11 +76,65 @@ def add_categories(df):
     df["Category"] = df["Description"].apply(categorize)
     return df
 
+def add_month_column(df):
+    # Extract "2025-07" style month labels for grouping
+    df["Month"] = df["Date"].dt.to_period("M").astype(str)
+    return df
+
+
+def monthly_summary(df):
+    # Total income, total spend, and net savings per month.
+    income = df[df["Amount"] > 0].groupby("Month")["Amount"].sum()
+    spend = df[df["Amount"] < 0].groupby("Month")["Amount"].sum().abs()
+
+    summary = pd.DataFrame({"Income": income, "Spending": spend}).fillna(0)
+    summary["Net Savings"] = summary["Income"] - summary["Spending"]
+    return summary
+
+
+def category_breakdown(df, month=None):
+    # Spending total per category, optionally filtered to one month.
+    spend_df = df[df["Amount"] < 0].copy()
+    if month:
+        spend_df = spend_df[spend_df["Month"] == month]
+
+    breakdown = spend_df.groupby("Category")["Amount"].sum().abs()
+    breakdown = breakdown.sort_values(ascending=False)
+    return breakdown
+
+
+def top_merchants(df, month=None, n=5):
+    # Top N merchants by total spend.
+    spend_df = df[df["Amount"] < 0].copy()
+    if month:
+        spend_df = spend_df[spend_df["Month"] == month]
+
+    totals = spend_df.groupby("Description")["Amount"].sum().abs()
+    return totals.sort_values(ascending=False).head(n)
+
+
+def month_over_month_change(summary):
+    # Percentage change in spending compared to the previous month.
+    summary = summary.copy()
+    summary["Spending Change %"] = summary["Spending"].pct_change() * 100
+    return summary
+
+
 if __name__ == "__main__":
     df = load_and_clean(DATA_FILE)
     df = add_categories(df)
+    df = add_month_column(df)
 
-    print(df[["Date", "Description", "Amount", "Category"]].head(15))
+    print("\n=== Monthly Summary ===")
+    summary = monthly_summary(df)
+    print(summary)
 
-    print("\nTransactions falling into 'Other' (may need new keywords):")
-    print(df[df["Category"] == "Other"]["Description"].unique())
+    print("\n=== Month-over-Month Spending Change ===")
+    print(month_over_month_change(summary))
+
+    latest_month = df["Month"].max()
+    print(f"\n=== Category Breakdown for {latest_month} ===")
+    print(category_breakdown(df, month=latest_month))
+
+    print(f"\n=== Top 5 Merchants for {latest_month} ===")
+    print(top_merchants(df, month=latest_month))
