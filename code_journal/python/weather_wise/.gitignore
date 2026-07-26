@@ -1,4 +1,7 @@
 __pycache__/
 *.pyc
 venv/
+.venv/
 weather_log.csv
+.vscode/
+.DS_Store
