@@ -1,4 +1,4 @@
-"""Flask app with search, compare, and history (Jinja)."""
+"""Flask app with search, compare, and history — card layout UI."""
 import os
 import sys
 
@@ -9,7 +9,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 STATIC_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "static"))
 
 sys.path.insert(0, PROJECT_ROOT)
-from weather_core import fetch_weather_for_city, get_search_history  # noqa: E402
+from weather_core import fetch_weather_for_city, get_search_history 
 
 app = Flask(__name__, template_folder="templates", static_folder=STATIC_DIR)
 

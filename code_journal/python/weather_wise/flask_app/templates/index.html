@@ -3,103 +3,160 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weather Wise</title>
+  <title>Weather Wise — Live Weather, Compared & Tracked</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  <h1>Weather Wise</h1>
-  <p class="tagline">Live weather, compared and tracked</p>
+  <div class="top-gradient-bar" aria-hidden="true"></div>
 
-  <section>
-    <h2>Search</h2>
-    <form method="POST" action="/">
-      <input type="hidden" name="form_type" value="search">
-      <label for="city">City</label>
-      <input type="text" id="city" name="city" placeholder="e.g. Lahore" required>
-      <button type="submit">Get Weather</button>
-    </form>
+  <main class="app-container">
+    <header class="header-section">
+      <h1 class="app-title">Weather Wise</h1>
+      <p class="app-tagline">Live weather, compared and tracked</p>
+    </header>
+
+    <section class="card search-card">
+      <div class="section-label">Look up the weather</div>
+      <form class="search-form" method="POST" action="/" autocomplete="off">
+        <input type="hidden" name="form_type" value="search">
+        <div class="input-wrapper">
+          <input type="text" name="city" placeholder="City (e.g. Lahore)" required aria-label="City">
+        </div>
+        <button type="submit" class="primary-btn">Get Weather</button>
+      </form>
+    </section>
 
     {% if result %}
+    <section class="card result-card">
       {% if result.error %}
-        <p class="error">{{ result.error }}</p>
+        <div class="error-state-container">
+          <div class="error-heading">{{ result.error }}</div>
+          <div class="error-subtext">Check the spelling or try a different city.</div>
+        </div>
       {% else %}
-        <h3>{{ result.city }}, {{ result.country }}</h3>
-        <p>{{ result.temperature }}°C — {{ result.condition }}</p>
-        <p>Wind: {{ result.windspeed }} km/h</p>
-        <p>{{ result.recommendation }}</p>
+        <div class="success-main-body">
+          <div class="city-name-wrapper">{{ result.city }}, {{ result.country }}</div>
+          <div class="temp-row">
+            <div class="temp-large">{{ result.temperature|round|int }}</div>
+            <div class="temp-unit-condition">
+              <div class="temp-unit">°C</div>
+              <div class="condition-text">{{ result.condition }}</div>
+            </div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-pill">
+              <div class="stat-content">
+                <div class="stat-label">Wind Speed</div>
+                <div class="stat-value">{{ result.windspeed }} km/h</div>
+              </div>
+            </div>
+            <div class="stat-pill">
+              <div class="stat-content">
+                <div class="stat-label">Condition</div>
+                <div class="stat-value">{{ result.condition }}</div>
+              </div>
+            </div>
+            <div class="stat-pill">
+              <div class="stat-content">
+                <div class="stat-label">Country</div>
+                <div class="stat-value">{{ result.country }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="recommendation-banner rec-sun">{{ result.recommendation }}</div>
       {% endif %}
+    </section>
     {% endif %}
-  </section>
 
-  <section>
-    <h2>Compare cities</h2>
-    <form method="POST" action="/">
-      <input type="hidden" name="form_type" value="compare">
-      <label for="cities">Cities (comma-separated)</label>
-      <input type="text" id="cities" name="cities" placeholder="e.g. Lahore, Karachi" required>
-      <button type="submit">Compare</button>
-    </form>
+    <section class="card compare-card">
+      <div class="section-label">Compare cities</div>
+      <form class="compare-form" method="POST" action="/" autocomplete="off">
+        <input type="hidden" name="form_type" value="compare">
+        <div class="input-wrapper">
+          <input type="text" name="cities" placeholder="e.g. Lahore, Karachi" required aria-label="Cities to compare">
+        </div>
+        <button type="submit" class="primary-btn">Compare</button>
+      </form>
+      <div class="compare-hint">Enter city names separated by commas</div>
 
-    {% if compare_results %}
-      <table>
-        <thead>
-          <tr>
-            <th>City</th>
-            <th>Country</th>
-            <th>Temperature</th>
-            <th>Wind</th>
-            <th>Condition</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in compare_results %}
-            {% if row.error %}
-              <tr><td colspan="5" class="error">{{ row.error }}</td></tr>
-            {% else %}
+      {% if compare_results %}
+      <div class="compare-results-container">
+        <div class="table-wrapper">
+          <table class="custom-table">
+            <thead>
               <tr>
-                <td>{{ row.city }}</td>
-                <td>{{ row.country }}</td>
-                <td>{{ row.temperature }}°C</td>
-                <td>{{ row.windspeed }} km/h</td>
-                <td>{{ row.condition }}</td>
+                <th>City</th>
+                <th>Country</th>
+                <th>Temperature</th>
+                <th>Wind Speed</th>
+                <th>Condition</th>
               </tr>
-            {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
-    {% endif %}
-  </section>
+            </thead>
+            <tbody>
+              {% for row in compare_results %}
+                {% if row.error %}
+                  <tr><td colspan="5" class="error-cell">{{ row.error }}</td></tr>
+                {% else %}
+                  <tr>
+                    <td class="city-cell-name">{{ row.city }}</td>
+                    <td>{{ row.country }}</td>
+                    <td class="temp-cell">{{ row.temperature }}°C</td>
+                    <td>{{ row.windspeed }} km/h</td>
+                    <td>{{ row.condition }}</td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+    </section>
 
-  <section>
-    <h2>Search history</h2>
-    {% if history %}
-      <table>
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>City</th>
-            <th>Country</th>
-            <th>Temperature</th>
-            <th>Wind</th>
-            <th>Condition</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in history %}
-            <tr>
-              <td>{{ row.Timestamp }}</td>
-              <td>{{ row.City }}</td>
-              <td>{{ row.Country }}</td>
-              <td>{{ row.Temperature }}°C</td>
-              <td>{{ row.WindSpeed }} km/h</td>
-              <td>{{ row.Condition }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="empty">No searches yet. Look up a city to start your history.</p>
-    {% endif %}
-  </section>
+    <section class="card history-card">
+      <div class="history-header">
+        <span class="section-label section-label-inline">Search history</span>
+      </div>
+      <div class="history-body">
+        {% if history %}
+          <div class="table-wrapper">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>City</th>
+                  <th>Country</th>
+                  <th>Temperature</th>
+                  <th>Wind Speed</th>
+                  <th>Condition</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in history %}
+                  <tr>
+                    <td class="timestamp-cell">{{ row.Timestamp }}</td>
+                    <td class="city-cell-name">{{ row.City }}</td>
+                    <td>{{ row.Country }}</td>
+                    <td class="temp-cell">{{ row.Temperature }}°C</td>
+                    <td>{{ row.WindSpeed }} km/h</td>
+                    <td>{{ row.Condition }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-history">
+            <div class="empty-title">No searches yet</div>
+            <div class="empty-subtext">Your weather lookups will appear here automatically</div>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  </main>
 </body>
 </html>
