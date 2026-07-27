@@ -1,101 +1,101 @@
-# Weather Wise
+# 🌤️ Weather Wise
 
-Weather Wise is a lightweight web app for looking up live weather by **city and country**, comparing conditions across multiple places, and keeping a searchable session history you can export as CSV. It solves the everyday problem of quickly checking accurate, location-specific weather without opening several tabs or guessing which "Paris" or "Springfield" an API returned.
+> Look up live weather by **city + country**, compare cities side-by-side, and track your searches — all in one clean web app.
 
----
-
-## Live Demo
-
-**Demo link:** https://weather-wise-uf86.onrender.com
-
-> Free-tier hosts sleep after inactivity; the first load can take 30–60 seconds.
+Weather Wise solves a simple everyday problem: getting **accurate, location-specific weather** without opening multiple tabs or guessing which *Paris* or *Springfield* a generic search returned.
 
 ---
 
-## Key Features
+## 🔗 Live Demo
 
-- **City + country search** — Look up current weather with explicit location matching (not just city name alone)
-- **Country aliases** — Supports shortcuts like `USA`, `UK`, `PK`, `UAE`, and more
-- **Ambiguity handling** — Suggests places when multiple exact matches exist (e.g. add state/region to narrow results)
-- **Compare cities** — Side-by-side table for up to 5 `City,Country` pairs using `City,Country & City,Country` format
-- **Outfit / preparedness tips** — Simple recommendations based on temperature and conditions (rain, heat, cold)
-- **Session search history** — Recent lookups shown in-app with a count badge
-- **CSV export** — Download your session history as `weather_log.csv`
-- **Responsive UI** — Usable on desktop, tablet, and mobile
-- **Input validation** — Client- and server-side checks for safe, readable place names
+**[weather-wise-uf86.onrender.com](https://weather-wise-uf86.onrender.com)**
+
+> Free-tier hosts sleep after inactivity — the first load may take 30–60 seconds.
 
 ---
 
-## Tech Stack
+## ✨ Key Features
+
+- **City + country search** — Explicit location matching, not just city name alone
+- **Country aliases** — Shortcuts like `USA`, `UK`, `PK`, `UAE`, and more
+- **Ambiguity handling** — Suggests places when multiple matches exist; add state/region to narrow down
+- **Compare cities** — Side-by-side table for up to 5 pairs: `City,Country & City,Country`
+- **Smart tips** — Outfit and preparedness hints based on rain, heat, or cold
+- **Session history** — Recent lookups in-app with a live count badge
+- **CSV export** — Download your session as `weather_log.csv`
+- **Responsive UI** — Works on desktop, tablet, and mobile
+- **Input validation** — Client- and server-side checks for safe place names
+
+---
+
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | Backend | Python, Flask |
-| HTTP client | `requests` (Open-Meteo geocoding + forecast APIs) |
+| HTTP client | `requests` → Open-Meteo geocoding + forecast |
 | Frontend | HTML, CSS, vanilla JavaScript |
 | Templates | Jinja2 (page shell + static asset URLs) |
-| Data logging | CSV (server-side `weather_log.csv`) |
-| APIs | [Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api), [Open-Meteo Forecast](https://open-meteo.com/en/docs) |
+| Data logging | CSV (`weather_log.csv` on server) |
+| APIs | [Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api) · [Open-Meteo Forecast](https://open-meteo.com/en/docs) |
 
 ---
 
-## Run Locally
+## 🚀 Run Locally
 
 ### Prerequisites
 
-- Python 3.10+ recommended
+- Python 3.10+
 - `pip`
 
 ### Steps
 
-1. **Clone the repository** (or navigate to this folder if you already have it):
+1. **Clone and enter the project**
 
    ```bash
    git clone https://github.com/rameelfaraz/code_journal.git
    cd code_journal/python/weather_wise
    ```
 
-2. **Create and activate a virtual environment** (optional but recommended):
+2. **Create a virtual environment** *(recommended)*
 
    ```bash
    python -m venv venv
    ```
 
    Windows:
-
    ```bash
    venv\Scripts\activate
    ```
 
    macOS / Linux:
-
    ```bash
    source venv/bin/activate
    ```
 
-3. **Install dependencies**:
+3. **Install dependencies**
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Start the Flask app**:
+4. **Start the app**
 
    ```bash
    python flask_app/app.py
    ```
 
-5. **Open in your browser**:
+5. **Open in browser**
 
    ```
    http://127.0.0.1:5000
    ```
 
-6. **Try a search** — e.g. City: `Lahore`, Country: `Pakistan`
+6. **Try a search** — City: `Lahore`, Country: `Pakistan`
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 weather_wise/
@@ -122,49 +122,54 @@ weather_wise/
     └── mobile-home.png
 ```
 
-**Runtime file (not committed):** `weather_log.csv` — created in the project root when you run a search.
+**Runtime file** (not committed): `weather_log.csv` — created when you run a search.
 
 ---
 
-## How It Works
+## ⚙️ How It Works
 
 ### Request flow
 
-1. The browser loads `index.html` from Flask (`GET /`).
-2. CSS and JavaScript are served from `static/`.
-3. When you search or compare, JavaScript calls `GET /api/weather?city=...&country=...`.
-4. Flask validates the input, then calls `fetch_weather_for_city()` in `weather_core.py`.
-5. `weather_core.py` geocodes the place via Open-Meteo, fetches current weather, logs the lookup to CSV, and returns JSON.
-6. JavaScript renders the result card, compare table, or error/ambiguity state without a full page reload.
-7. Successful lookups are added to **session history** in the browser; you can download that list as CSV.
+```
+Browser  →  Flask (routes)  →  weather_core.py  →  Open-Meteo API
+   ↑                                                    |
+   └──────────── JSON response ←─────────────────────────┘
+```
 
-### Geocoding logic (summary)
+1. Browser loads `index.html` via `GET /`
+2. CSS and JS served from `static/`
+3. Search or compare triggers `GET /api/weather?city=...&country=...`
+4. Flask validates input, then calls `fetch_weather_for_city()`
+5. `weather_core.py` geocodes, fetches weather, logs to CSV, returns JSON
+6. JavaScript renders results without a full page reload
+7. Successful lookups added to session history and can be downloaded as CSV
 
-- City and country are normalized and matched against Open-Meteo results.
-- Country aliases map common abbreviations to full country names.
-- US state hints (e.g. `Springfield, IL`) help disambiguate cities.
-- If several exact matches remain, the app returns suggestions instead of guessing.
+### Geocoding logic
+
+- City and country normalized and matched against Open-Meteo results
+- Country aliases (`pk` → Pakistan, `usa` → United States, etc.)
+- US state hints (`Springfield, IL`) disambiguate cities
+- Multiple exact matches return suggestions instead of guessing
 
 ### Limitations
 
-- **No API key / no auth** — Relies on free Open-Meteo endpoints; subject to their availability and rate limits.
-- **Current weather only** — No hourly or multi-day forecast in the UI.
-- **Session-only history in the browser** — Refreshing the page clears the in-app history table (server CSV logging still runs per lookup).
-- **Exact-match geocoding** — Misspellings or vague names may return “not found”; ambiguous names require you to pick or refine the query.
-- **Compare cap** — At most 5 city pairs per compare request.
-- **No user accounts** — No saved preferences or cross-device history.
-- **Free hosting sleep** — If deployed on a free tier, the app may spin down when idle and wake slowly on first visit.
+- **No API key** — Free Open-Meteo endpoints; subject to availability and rate limits
+- **Current weather only** — No hourly or multi-day forecast in the UI
+- **Session history** — Refreshing clears the in-app table (server CSV still logs each lookup)
+- **Exact-match geocoding** — Typos may fail; ambiguous names need refinement
+- **Compare cap** — Max 5 city pairs per request
+- **No accounts** — No cross-device saved history
+- **Free hosting** — App may sleep when idle on Render free tier
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
-
-### Home — search & layout (desktop)
+### Home — desktop layout
 
 <img src="screenshots/home-desktop.png" alt="Home desktop — search, compare, and history sections" width="800">
 
-### Weather result — success state
+### Weather result
 
 <img src="screenshots/result-success.png" alt="Weather result card with temperature and recommendation" width="800">
 
@@ -172,11 +177,11 @@ weather_wise/
 
 <img src="screenshots/compare-cities.png" alt="Compare cities table" width="800">
 
-### Ambiguous location suggestions
+### Ambiguous locations
 
 <img src="screenshots/ambiguity.png" alt="Ambiguous location suggestions" width="800">
 
-### Search history & CSV download
+### Search history and CSV
 
 <img src="screenshots/history.png" alt="Search history table and CSV download" width="800">
 
@@ -186,6 +191,6 @@ weather_wise/
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
