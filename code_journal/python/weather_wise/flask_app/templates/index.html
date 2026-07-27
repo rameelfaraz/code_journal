@@ -8,6 +8,23 @@
 </head>
 <body>
   <h1>Weather Wise</h1>
-  <p>Live weather, compared and tracked</p>
+  <p class="tagline">Live weather, compared and tracked</p>
+
+  <form method="POST" action="/">
+    <label for="city">City</label>
+    <input type="text" id="city" name="city" placeholder="e.g. Lahore" required>
+    <button type="submit">Get Weather</button>
+  </form>
+
+  {% if result %}
+    {% if result.error %}
+      <p class="error">{{ result.error }}</p>
+    {% else %}
+      <h2>{{ result.city }}, {{ result.country }}</h2>
+      <p>{{ result.temperature }}°C — {{ result.condition }}</p>
+      <p>Wind: {{ result.windspeed }} km/h</p>
+      <p>{{ result.recommendation }}</p>
+    {% endif %}
+  {% endif %}
 </body>
 </html>
