@@ -22,8 +22,13 @@
       <div class="section-label">Look up the weather</div>
       <form class="search-form" method="POST" action="/" autocomplete="off">
         <input type="hidden" name="form_type" value="search">
-        <div class="input-wrapper">
-          <input type="text" name="city" placeholder="City (e.g. Lahore)" required aria-label="City">
+        <div class="input-pair">
+          <div class="input-wrapper">
+            <input type="text" name="city" placeholder="City (e.g. Lahore)" required aria-label="City">
+          </div>
+          <div class="input-wrapper">
+            <input type="text" name="country" placeholder="Country (e.g. Pakistan)" required aria-label="Country">
+          </div>
         </div>
         <button type="submit" class="primary-btn">Get Weather</button>
       </form>
@@ -77,11 +82,11 @@
       <form class="compare-form" method="POST" action="/" autocomplete="off">
         <input type="hidden" name="form_type" value="compare">
         <div class="input-wrapper">
-          <input type="text" name="cities" placeholder="e.g. Lahore, Karachi" required aria-label="Cities to compare">
+          <input type="text" name="cities" placeholder="e.g. Lahore,Pakistan & Dubai,UAE" required aria-label="Cities to compare">
         </div>
         <button type="submit" class="primary-btn">Compare</button>
       </form>
-      <div class="compare-hint">Enter city names separated by commas</div>
+      <div class="compare-hint">Use format: City,Country & City,Country</div>
 
       {% if compare_results %}
       <div class="compare-results-container">

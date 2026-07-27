@@ -6,6 +6,64 @@ GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 LOG_FILE = "weather_log.csv"
 
+COUNTRY_ALIASES = {
+    "usa": "united states",
+    "u.s.a": "united states",
+    "us": "united states",
+    "u.s": "united states",
+    "united states of america": "united states",
+    "uk": "united kingdom",
+    "u.k": "united kingdom",
+    "gb": "united kingdom",
+    "great britain": "united kingdom",
+    "uae": "united arab emirates",
+    "u.a.e": "united arab emirates",
+    "pk": "pakistan",
+    "pak": "pakistan",
+    "in": "india",
+    "ind": "india",
+    "ca": "canada",
+    "can": "canada",
+    "au": "australia",
+    "aus": "australia",
+    "nz": "new zealand",
+    "nzl": "new zealand",
+    "de": "germany",
+    "deu": "germany",
+    "fr": "france",
+    "fra": "france",
+    "jp": "japan",
+    "jpn": "japan",
+    "cn": "china",
+    "chn": "china",
+    "prc": "china",
+    "ksa": "saudi arabia",
+    "k.s.a": "saudi arabia",
+    "sa": "saudi arabia",
+    "ch": "switzerland",
+    "che": "switzerland",
+    "nl": "netherlands",
+    "nld": "netherlands",
+    "br": "brazil",
+    "bra": "brazil",
+    "mx": "mexico",
+    "mex": "mexico",
+    "ru": "russia",
+    "rus": "russia",
+    "eg": "egypt",
+    "egy": "egypt",
+    "kr": "south korea",
+    "kor": "south korea",
+    "tr": "turkey",
+    "tur": "turkey",
+    "sg": "singapore",
+    "sgp": "singapore",
+    "es": "spain",
+    "esp": "spain",
+    "it": "italy",
+    "ita": "italy",
+}
+
 WEATHER_CODES = {
     0: "Clear Sky",
     1: "Mainly Clear",
@@ -23,16 +81,29 @@ WEATHER_CODES = {
 }
 
 
-def get_coordinates(city_name):
+def _normalize_text(value):
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _normalize_country_name(country_name):
+    normalized = _normalize_text(country_name)
+    return COUNTRY_ALIASES.get(normalized, normalized)
+
+
+def get_coordinates(city_name, country_name):
     """
     Look up a city's latitude/longitude using Open-Meteo's free
-    geocoding endpoint.
+    geocoding endpoint, filtered by exact country name match.
 
     Returns a dict {name, country, latitude, longitude} on success,
-    or None if the city wasn't found or a network error occurred.
+    or None if no match / network error.
+    First exact match wins (no ambiguity handling yet).
     """
     try:
-        params = {"name": city_name, "count": 1}
+        target_country = _normalize_country_name(country_name)
+        target_city = _normalize_text(city_name)
+
+        params = {"name": city_name, "count": 10}
         response = requests.get(GEOCODING_URL, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
@@ -40,13 +111,18 @@ def get_coordinates(city_name):
         if "results" not in data or len(data["results"]) == 0:
             return None
 
-        result = data["results"][0]
-        return {
-            "name": result["name"],
-            "country": result.get("country", "Unknown"),
-            "latitude": result["latitude"],
-            "longitude": result["longitude"],
-        }
+        for result in data["results"]:
+            result_city = _normalize_text(result.get("name", ""))
+            result_country = _normalize_country_name(result.get("country", ""))
+            if result_city == target_city and result_country == target_country:
+                return {
+                    "name": result["name"],
+                    "country": result.get("country", "Unknown"),
+                    "latitude": result["latitude"],
+                    "longitude": result["longitude"],
+                }
+
+        return None
 
     except requests.exceptions.RequestException:
         return None
@@ -93,7 +169,7 @@ def get_recommendation(temperature, weathercode):
     if "Rain" in condition or "Drizzle" in condition or "Thunderstorm" in condition:
         messages.append("Bring an umbrella.")
     if temperature < 15:
-        messages.append(" Wear a jacket — it's chilly.")
+        messages.append("Wear a jacket — it's chilly.")
     elif temperature > 35:
         messages.append("Stay hydrated — it's very hot.")
     if not messages:
@@ -129,15 +205,15 @@ def get_search_history():
         return pd.DataFrame(columns=["Timestamp", "City", "Country", "Temperature", "WindSpeed", "Condition"])
 
 
-def fetch_weather_for_city(city_name):
+def fetch_weather_for_city(city_name, country_name):
     """
-    Full pipeline for one city: geocode -> fetch weather -> log.
+    Full pipeline for one city+country: geocode -> fetch weather -> log.
     Returns a dict with everything a UI needs to display, or a dict
     with an "error" key if something failed.
     """
-    location = get_coordinates(city_name)
+    location = get_coordinates(city_name, country_name)
     if location is None:
-        return {"error": f"Could not find a city matching '{city_name}'."}
+        return {"error": f"Could not find an exact match for '{city_name}, {country_name}'."}
 
     weather = get_current_weather(location["latitude"], location["longitude"])
     if weather is None:

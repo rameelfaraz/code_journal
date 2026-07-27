@@ -110,6 +110,17 @@ button {
   display: flex;
   gap: 10px;
 }
+.input-pair {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.input-pair .input-wrapper {
+  min-width: 0;
+}
+
 
 .input-wrapper {
   position: relative;
