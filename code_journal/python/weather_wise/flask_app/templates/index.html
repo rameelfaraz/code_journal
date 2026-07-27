@@ -10,21 +10,96 @@
   <h1>Weather Wise</h1>
   <p class="tagline">Live weather, compared and tracked</p>
 
-  <form method="POST" action="/">
-    <label for="city">City</label>
-    <input type="text" id="city" name="city" placeholder="e.g. Lahore" required>
-    <button type="submit">Get Weather</button>
-  </form>
+  <section>
+    <h2>Search</h2>
+    <form method="POST" action="/">
+      <input type="hidden" name="form_type" value="search">
+      <label for="city">City</label>
+      <input type="text" id="city" name="city" placeholder="e.g. Lahore" required>
+      <button type="submit">Get Weather</button>
+    </form>
 
-  {% if result %}
-    {% if result.error %}
-      <p class="error">{{ result.error }}</p>
-    {% else %}
-      <h2>{{ result.city }}, {{ result.country }}</h2>
-      <p>{{ result.temperature }}°C — {{ result.condition }}</p>
-      <p>Wind: {{ result.windspeed }} km/h</p>
-      <p>{{ result.recommendation }}</p>
+    {% if result %}
+      {% if result.error %}
+        <p class="error">{{ result.error }}</p>
+      {% else %}
+        <h3>{{ result.city }}, {{ result.country }}</h3>
+        <p>{{ result.temperature }}°C — {{ result.condition }}</p>
+        <p>Wind: {{ result.windspeed }} km/h</p>
+        <p>{{ result.recommendation }}</p>
+      {% endif %}
     {% endif %}
-  {% endif %}
+  </section>
+
+  <section>
+    <h2>Compare cities</h2>
+    <form method="POST" action="/">
+      <input type="hidden" name="form_type" value="compare">
+      <label for="cities">Cities (comma-separated)</label>
+      <input type="text" id="cities" name="cities" placeholder="e.g. Lahore, Karachi" required>
+      <button type="submit">Compare</button>
+    </form>
+
+    {% if compare_results %}
+      <table>
+        <thead>
+          <tr>
+            <th>City</th>
+            <th>Country</th>
+            <th>Temperature</th>
+            <th>Wind</th>
+            <th>Condition</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in compare_results %}
+            {% if row.error %}
+              <tr><td colspan="5" class="error">{{ row.error }}</td></tr>
+            {% else %}
+              <tr>
+                <td>{{ row.city }}</td>
+                <td>{{ row.country }}</td>
+                <td>{{ row.temperature }}°C</td>
+                <td>{{ row.windspeed }} km/h</td>
+                <td>{{ row.condition }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Search history</h2>
+    {% if history %}
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>City</th>
+            <th>Country</th>
+            <th>Temperature</th>
+            <th>Wind</th>
+            <th>Condition</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in history %}
+            <tr>
+              <td>{{ row.Timestamp }}</td>
+              <td>{{ row.City }}</td>
+              <td>{{ row.Country }}</td>
+              <td>{{ row.Temperature }}°C</td>
+              <td>{{ row.WindSpeed }} km/h</td>
+              <td>{{ row.Condition }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="empty">No searches yet. Look up a city to start your history.</p>
+    {% endif %}
+  </section>
 </body>
 </html>
