@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weather Wise — Live Weather, Compared & Tracked</title>
+  <meta name="description" content="Search weather, compare conditions across cities, and export search history with Weather Wise.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -14,154 +15,123 @@
 
   <main class="app-container">
     <header class="header-section">
+      <div class="app-logo" aria-hidden="true">
+        <svg class="icon-sun" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="icon-cloud-overlap" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+        </svg>
+      </div>
       <h1 class="app-title">Weather Wise</h1>
       <p class="app-tagline">Live weather, compared and tracked</p>
     </header>
 
     <section class="card search-card">
       <div class="section-label">Look up the weather</div>
-      <form class="search-form" method="POST" action="/" autocomplete="off">
-        <input type="hidden" name="form_type" value="search">
+      <form class="search-form" id="searchForm" autocomplete="off">
         <div class="input-pair">
           <div class="input-wrapper">
-            <input type="text" name="city" placeholder="City (e.g. Lahore)" required aria-label="City">
+            <svg class="input-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            <input type="text" id="searchInput" name="city" placeholder="City (e.g. Lahore)" maxlength="80" required aria-label="City" />
           </div>
           <div class="input-wrapper">
-            <input type="text" name="country" placeholder="Country (e.g. Pakistan)" required aria-label="Country">
+            <svg class="input-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15 15 0 0 1 0 20"></path>
+              <path d="M12 2a15 15 0 0 0 0 20"></path>
+            </svg>
+            <input type="text" id="searchCountryInput" name="country" placeholder="Country (e.g. Pakistan)" maxlength="60" required aria-label="Country" />
           </div>
         </div>
-        <button type="submit" class="primary-btn">Get Weather</button>
+        <button type="submit" id="searchBtn" class="primary-btn">
+          <svg class="btn-icon search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <svg class="btn-icon spinner-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span class="btn-text">Get Weather</span>
+        </button>
       </form>
     </section>
 
-    {% if result %}
-    <section class="card result-card">
-      {% if result.error %}
-        <div class="error-state-container">
-          <div class="error-heading">{{ result.error }}</div>
-          <div class="error-subtext">Check the spelling or try a different city.</div>
-        </div>
-      {% else %}
-        <div class="success-main-body">
-          <div class="city-name-wrapper">{{ result.city }}, {{ result.country }}</div>
-          <div class="temp-row">
-            <div class="temp-large">{{ result.temperature|round|int }}</div>
-            <div class="temp-unit-condition">
-              <div class="temp-unit">°C</div>
-              <div class="condition-text">{{ result.condition }}</div>
-            </div>
-          </div>
-          <div class="stats-row">
-            <div class="stat-pill">
-              <div class="stat-content">
-                <div class="stat-label">Wind Speed</div>
-                <div class="stat-value">{{ result.windspeed }} km/h</div>
-              </div>
-            </div>
-            <div class="stat-pill">
-              <div class="stat-content">
-                <div class="stat-label">Condition</div>
-                <div class="stat-value">{{ result.condition }}</div>
-              </div>
-            </div>
-            <div class="stat-pill">
-              <div class="stat-content">
-                <div class="stat-label">Country</div>
-                <div class="stat-value">{{ result.country }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="recommendation-banner rec-sun">{{ result.recommendation }}</div>
-      {% endif %}
-    </section>
-    {% endif %}
+    <section class="card result-card hidden" id="resultCard" aria-live="polite"></section>
 
     <section class="card compare-card">
       <div class="section-label">Compare cities</div>
-      <form class="compare-form" method="POST" action="/" autocomplete="off">
-        <input type="hidden" name="form_type" value="compare">
+      <form class="compare-form" id="compareForm" autocomplete="off">
         <div class="input-wrapper">
-          <input type="text" name="cities" placeholder="e.g. Lahore,Pakistan & Dubai,UAE" required aria-label="Cities to compare">
+          <svg class="input-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <input type="text" id="compareInput" name="compare" placeholder="e.g. Lahore,Pakistan & Dubai,UAE" maxlength="400" required aria-label="Cities to compare" />
         </div>
-        <button type="submit" class="primary-btn">Compare</button>
+        <button type="submit" id="compareBtn" class="primary-btn">
+          <svg class="btn-icon compare-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <svg class="btn-icon spinner-icon hidden" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span class="btn-text">Compare</span>
+        </button>
       </form>
       <div class="compare-hint">Use format: City,Country & City,Country</div>
-
-      {% if compare_results %}
-      <div class="compare-results-container">
-        <div class="table-wrapper">
-          <table class="custom-table">
-            <thead>
-              <tr>
-                <th>City</th>
-                <th>Country</th>
-                <th>Temperature</th>
-                <th>Wind Speed</th>
-                <th>Condition</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in compare_results %}
-                {% if row.error %}
-                  <tr><td colspan="5" class="error-cell">{{ row.error }}</td></tr>
-                {% else %}
-                  <tr>
-                    <td class="city-cell-name">{{ row.city }}</td>
-                    <td>{{ row.country }}</td>
-                    <td class="temp-cell">{{ row.temperature }}°C</td>
-                    <td>{{ row.windspeed }} km/h</td>
-                    <td>{{ row.condition }}</td>
-                  </tr>
-                {% endif %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endif %}
+      <div id="compareResults" class="compare-results-container" aria-live="polite"></div>
     </section>
 
     <section class="card history-card">
       <div class="history-header">
-        <span class="section-label section-label-inline">Search history</span>
+        <div class="history-header-left">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span class="section-label section-label-inline">Search history</span>
+          <span id="historyBadge" class="history-badge hidden">0</span>
+        </div>
+        <button type="button" id="downloadCsvBtn" class="csv-btn hidden">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Download CSV</span>
+        </button>
       </div>
-      <div class="history-body">
-        {% if history %}
-          <div class="table-wrapper">
-            <table class="custom-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>City</th>
-                  <th>Country</th>
-                  <th>Temperature</th>
-                  <th>Wind Speed</th>
-                  <th>Condition</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in history %}
-                  <tr>
-                    <td class="timestamp-cell">{{ row.Timestamp }}</td>
-                    <td class="city-cell-name">{{ row.City }}</td>
-                    <td>{{ row.Country }}</td>
-                    <td class="temp-cell">{{ row.Temperature }}°C</td>
-                    <td>{{ row.WindSpeed }} km/h</td>
-                    <td>{{ row.Condition }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+
+      <div class="history-body" id="historyBody">
+        <div class="empty-history">
+          <div class="empty-icon-circle">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
           </div>
-        {% else %}
-          <div class="empty-history">
-            <div class="empty-title">No searches yet</div>
-            <div class="empty-subtext">Your weather lookups will appear here automatically</div>
-          </div>
-        {% endif %}
+          <div class="empty-title">No searches yet</div>
+          <div class="empty-subtext">Your weather lookups will appear here automatically</div>
+        </div>
       </div>
     </section>
   </main>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

@@ -1,10 +1,15 @@
-import requests
-import pandas as pd
+"""Weather lookup helpers backed by Open-Meteo's free geocoding and forecast APIs."""
+
+import csv
+import os
 from datetime import datetime
+
+import requests
 
 GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
-LOG_FILE = "weather_log.csv"
+LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weather_log.csv")
+LOG_HEADERS = ["Timestamp", "City", "Country", "Temperature", "WindSpeed", "Condition"]
 
 COUNTRY_ALIASES = {
     "usa": "united states",
@@ -64,6 +69,19 @@ COUNTRY_ALIASES = {
     "ita": "italy",
 }
 
+US_STATES = {
+    "al": "alabama", "ak": "alaska", "az": "arizona", "ar": "arkansas", "ca": "california",
+    "co": "colorado", "ct": "connecticut", "de": "delaware", "fl": "florida", "ga": "georgia",
+    "hi": "hawaii", "id": "idaho", "il": "illinois", "in": "indiana", "ia": "iowa",
+    "ks": "kansas", "ky": "kentucky", "la": "louisiana", "me": "maine", "md": "maryland",
+    "ma": "massachusetts", "mi": "michigan", "mn": "minnesota", "ms": "mississippi", "mo": "missouri",
+    "mt": "montana", "ne": "nebraska", "nv": "nevada", "nh": "new hampshire", "nj": "new jersey",
+    "nm": "new mexico", "ny": "new york", "nc": "north carolina", "nd": "north dakota", "oh": "ohio",
+    "ok": "oklahoma", "or": "oregon", "pa": "pennsylvania", "ri": "rhode island", "sc": "south carolina",
+    "sd": "south dakota", "tn": "tennessee", "tx": "texas", "ut": "utah", "vt": "vermont",
+    "va": "virginia", "wa": "washington", "wv": "west virginia", "wi": "wisconsin", "wy": "wyoming",
+}
+
 WEATHER_CODES = {
     0: "Clear Sky",
     1: "Mainly Clear",
@@ -90,39 +108,106 @@ def _normalize_country_name(country_name):
     return COUNTRY_ALIASES.get(normalized, normalized)
 
 
+def _format_city_label(location):
+    """Prefer 'City, Region' when the admin region adds useful detail."""
+    name = location.get("name", "")
+    admin1 = location.get("admin1")
+    if admin1 and _normalize_text(admin1) != _normalize_text(name):
+        return f"{name}, {admin1}"
+    return name
+
+
 def get_coordinates(city_name, country_name):
     """
-    Look up a city's latitude/longitude using Open-Meteo's free
-    geocoding endpoint, filtered by exact country name match.
+    Resolve a city to coordinates via Open-Meteo geocoding.
 
-    Returns a dict {name, country, latitude, longitude} on success,
-    or None if no match / network error.
-    First exact match wins (no ambiguity handling yet).
+    Returns {name, country, admin1, latitude, longitude} on success,
+    {ambiguous, error, matches} when several exact matches exist,
+    or None when nothing is found / the request fails.
     """
     try:
         target_country = _normalize_country_name(country_name)
-        target_city = _normalize_text(city_name)
+        raw_city = str(city_name or "").strip()
 
-        params = {"name": city_name, "count": 10}
+        parts = [p.strip() for p in raw_city.split(",") if p.strip()]
+        if len(parts) > 1:
+            base_city = parts[0]
+            region_detail = _normalize_text(parts[1])
+        else:
+            words = raw_city.split()
+            if len(words) > 1 and (_normalize_text(words[-1]) in US_STATES or len(words[-1]) == 2):
+                base_city = " ".join(words[:-1])
+                region_detail = _normalize_text(words[-1])
+            else:
+                base_city = raw_city
+                region_detail = None
+
+        target_city = _normalize_text(base_city)
+
+        params = {"name": base_city, "count": 20}
         response = requests.get(GEOCODING_URL, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
 
         if "results" not in data or len(data["results"]) == 0:
-            return None
+            if base_city != raw_city:
+                params = {"name": raw_city, "count": 20}
+                response = requests.get(GEOCODING_URL, params=params, timeout=5)
+                response.raise_for_status()
+                data = response.json()
+                if "results" not in data or len(data["results"]) == 0:
+                    return None
+            else:
+                return None
 
+        candidates = []
         for result in data["results"]:
             result_city = _normalize_text(result.get("name", ""))
             result_country = _normalize_country_name(result.get("country", ""))
             if result_city == target_city and result_country == target_country:
-                return {
-                    "name": result["name"],
-                    "country": result.get("country", "Unknown"),
-                    "latitude": result["latitude"],
-                    "longitude": result["longitude"],
-                }
+                if region_detail:
+                    admin1 = _normalize_text(result.get("admin1", ""))
+                    admin2 = _normalize_text(result.get("admin2", ""))
+                    admin3 = _normalize_text(result.get("admin3", ""))
+                    norm_region = US_STATES.get(region_detail, region_detail)
+                    if (
+                        norm_region in admin1
+                        or norm_region in admin2
+                        or norm_region in admin3
+                        or region_detail in admin1
+                    ):
+                        candidates.append(result)
+                else:
+                    candidates.append(result)
 
-        return None
+        if len(candidates) == 0:
+            return None
+
+        if len(candidates) > 1:
+            options = []
+            for entry in candidates:
+                admin = entry.get("admin1") or entry.get("admin2") or entry.get("country")
+                options.append(f"{entry.get('name', base_city)}, {admin}")
+
+            unique_options = list(dict.fromkeys(options))[:3]
+            options_text = "; ".join(unique_options)
+            return {
+                "ambiguous": True,
+                "error": (
+                    f"Multiple exact matches found for '{city_name}, {country_name}'. "
+                    f"Try adding state/region details. Possible matches: {options_text}."
+                ),
+                "matches": unique_options,
+            }
+
+        result = candidates[0]
+        return {
+            "name": result["name"],
+            "country": result.get("country", "Unknown"),
+            "admin1": result.get("admin1"),
+            "latitude": result["latitude"],
+            "longitude": result["longitude"],
+        }
 
     except requests.exceptions.RequestException:
         return None
@@ -132,8 +217,7 @@ def get_current_weather(latitude, longitude):
     """
     Fetch current weather for a coordinate pair.
 
-    Returns a dict {temperature, windspeed, weathercode} on success,
-    or None on any network/parsing error.
+    Returns {temperature, windspeed, weathercode} on success, or None on failure.
     """
     try:
         params = {
@@ -157,12 +241,12 @@ def get_current_weather(latitude, longitude):
 
 
 def describe_weather_code(code):
-    """Turn a numeric Open-Meteo weather code into a readable label."""
+    """Map an Open-Meteo weather code to a short label."""
     return WEATHER_CODES.get(code, "Unknown Conditions")
 
 
 def get_recommendation(temperature, weathercode):
-    """Simple rule-based recommendation string based on conditions."""
+    """Build a short clothing / preparedness tip from conditions."""
     condition = describe_weather_code(weathercode)
     messages = []
 
@@ -179,41 +263,40 @@ def get_recommendation(temperature, weathercode):
 
 
 def log_search(location, weather):
-    """Append a search result to the CSV history file with a timestamp."""
+    """Append one lookup to the local CSV history file."""
     entry = {
         "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "City": location["name"],
+        "City": _format_city_label(location),
         "Country": location["country"],
         "Temperature": weather["temperature"],
         "WindSpeed": weather["windspeed"],
         "Condition": describe_weather_code(weather["weathercode"]),
     }
-    df_entry = pd.DataFrame([entry])
 
-    try:
-        pd.read_csv(LOG_FILE)
-        df_entry.to_csv(LOG_FILE, mode="a", header=False, index=False)
-    except FileNotFoundError:
-        df_entry.to_csv(LOG_FILE, mode="w", header=True, index=False)
-
-
-def get_search_history():
-    """Return the search history as a DataFrame, or an empty one if none exists."""
-    try:
-        return pd.read_csv(LOG_FILE)
-    except FileNotFoundError:
-        return pd.DataFrame(columns=["Timestamp", "City", "Country", "Temperature", "WindSpeed", "Condition"])
+    file_exists = os.path.isfile(LOG_FILE)
+    with open(LOG_FILE, "a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=LOG_HEADERS)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(entry)
 
 
 def fetch_weather_for_city(city_name, country_name):
     """
-    Full pipeline for one city+country: geocode -> fetch weather -> log.
-    Returns a dict with everything a UI needs to display, or a dict
-    with an "error" key if something failed.
+    Geocode, fetch weather, and log one city+country lookup.
+
+    Returns a display-ready dict, or a dict with an "error" key on failure.
     """
     location = get_coordinates(city_name, country_name)
     if location is None:
         return {"error": f"Could not find an exact match for '{city_name}, {country_name}'."}
+
+    if location.get("ambiguous"):
+        return {
+            "error": location["error"],
+            "ambiguous": True,
+            "matches": location.get("matches", []),
+        }
 
     weather = get_current_weather(location["latitude"], location["longitude"])
     if weather is None:
@@ -222,7 +305,7 @@ def fetch_weather_for_city(city_name, country_name):
     log_search(location, weather)
 
     return {
-        "city": location["name"],
+        "city": _format_city_label(location),
         "country": location["country"],
         "temperature": weather["temperature"],
         "windspeed": weather["windspeed"],

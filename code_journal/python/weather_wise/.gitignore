@@ -1,7 +1,14 @@
+# Python bytecode
 __pycache__/
 *.pyc
+
+# Virtual environments
 venv/
 .venv/
+
+# Local logs
 weather_log.csv
+
+# IDE / System
 .vscode/
 .DS_Store

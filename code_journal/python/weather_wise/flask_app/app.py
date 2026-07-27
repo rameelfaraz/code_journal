@@ -1,72 +1,70 @@
-"""Flask app with city+country search, compare, and history (Jinja)."""
+"""Flask entry point for Weather Wise."""
+
 import os
 import sys
 
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 BASE_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 STATIC_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "static"))
 
 sys.path.insert(0, PROJECT_ROOT)
-from weather_core import fetch_weather_for_city, get_search_history  
+from weather_core import fetch_weather_for_city  
 
 app = Flask(__name__, template_folder="templates", static_folder=STATIC_DIR)
 
+CITY_MAX_LENGTH = 80
+COUNTRY_MAX_LENGTH = 60
+CITY_EXTRA_CHARS = ".'-,"
+COUNTRY_EXTRA_CHARS = ".'-"
 
-def _parse_compare_pairs(raw):
-    """Parse 'City,Country & City,Country' into list of (city, country)."""
-    pairs = []
-    for entry in (raw or "").split("&"):
-        entry = entry.strip()
-        if not entry:
+
+def _is_valid_name(value, extra_chars, max_length):
+    """Letters (any language), spaces, and a small set of punctuation; at least 2 letters."""
+    cleaned = " ".join(str(value or "").strip().split())
+    if not cleaned or len(cleaned) > max_length:
+        return False
+
+    letter_count = 0
+    for character in cleaned:
+        if character.isalpha():
+            letter_count += 1
+        elif character.isspace() or character in extra_chars:
             continue
-        parts = [p.strip() for p in entry.split(",")]
-        if len(parts) < 2:
-            return None, "Use format: City,Country & City,Country"
-        country = parts[-1]
-        city = ",".join(parts[:-1]).strip()
-        if not city or not country:
-            return None, "Use format: City,Country & City,Country"
-        pairs.append((city, country))
-    return pairs, None
+        else:
+            return False
+
+    return letter_count >= 2
 
 
-@app.route("/", methods=["GET", "POST"])
+def is_valid_city_name(city_name):
+    return _is_valid_name(city_name, CITY_EXTRA_CHARS, CITY_MAX_LENGTH)
+
+
+def is_valid_country_name(country_name):
+    return _is_valid_name(country_name, COUNTRY_EXTRA_CHARS, COUNTRY_MAX_LENGTH)
+
+
+@app.route("/")
 def index():
-    result = None
-    compare_results = None
+    return render_template("index.html")
 
-    if request.method == "POST":
-        form_type = request.form.get("form_type", "search")
 
-        if form_type == "search":
-            city = (request.form.get("city") or "").strip()
-            country = (request.form.get("country") or "").strip()
-            if city and country:
-                result = fetch_weather_for_city(city, country)
-            else:
-                result = {"error": "Please enter both city and country."}
+@app.route("/api/weather")
+def api_weather():
+    city = request.args.get("city", "")
+    country = request.args.get("country", "")
 
-        elif form_type == "compare":
-            pairs, err = _parse_compare_pairs(request.form.get("cities") or "")
-            if err:
-                compare_results = [{"error": err}]
-            elif len(pairs) < 2:
-                compare_results = [{"error": "Enter at least two City,Country pairs separated by &."}]
-            else:
-                compare_results = [fetch_weather_for_city(city, country) for city, country in pairs]
+    if not is_valid_city_name(city) or not is_valid_country_name(country):
+        return jsonify({
+            "error": "Please enter a valid city and country name."
+        }), 400
 
-    history_df = get_search_history()
-    history = history_df.to_dict(orient="records") if not history_df.empty else []
-
-    return render_template(
-        "index.html",
-        result=result,
-        compare_results=compare_results,
-        history=history,
-    )
+    return jsonify(fetch_weather_for_city(city, country))
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    debug = "PORT" not in os.environ
+    app.run(host="0.0.0.0", port=port, debug=debug)
