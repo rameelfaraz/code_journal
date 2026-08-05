@@ -60,7 +60,7 @@ def build_column_profiles(df: pd.DataFrame) -> list[ColumnProfile]:
     return profiles
 
 
-@app.post("/profile", dependencies=[Depends(verify_api_key)])
+@app.post("/profile", response_model=ProfileReport, dependencies=[Depends(verify_api_key)])
 async def profile_csv(file: UploadFile = File(...)):
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
@@ -80,9 +80,10 @@ async def profile_csv(file: UploadFile = File(...)):
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV has no rows")
 
-    return {
-        "rows": len(df),
-        "columns": len(df.columns),
-        "duplicate_rows": int(df.duplicated().sum()),
-        "column_names": df.columns.tolist(),
-    }
+    return ProfileReport(
+        rows=len(df),
+        columns=len(df.columns),
+        duplicate_rows=int(df.duplicated().sum()),
+        column_names=df.columns.tolist(),
+        column_profiles=build_column_profiles(df),
+    )
