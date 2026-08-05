@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from pydantic import BaseModel
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
@@ -12,6 +13,22 @@ load_dotenv(PROJECT_ROOT / ".env")
 app = FastAPI(title="Data Quality & Profiling API")
 API_KEY = os.getenv("API_KEY", "")
 
+class ColumnProfile(BaseModel):
+    name: str
+    dtype: str
+    missing_count: int
+    missing_percent: float
+    unique_count: int
+    has_whitespace_issues: bool = False
+    outlier_count: int | None = None
+
+
+class ProfileReport(BaseModel):
+    rows: int
+    columns: int
+    duplicate_rows: int
+    column_names: list[str]
+    column_profiles: list[ColumnProfile]
 
 @app.get("/")
 def root():
