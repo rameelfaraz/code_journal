@@ -38,6 +38,26 @@ def root():
 def verify_api_key(x_api_key: str = Header(...)) -> None:
     if not API_KEY or x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    
+
+def build_column_profiles(df: pd.DataFrame) -> list[ColumnProfile]:
+    profiles = []
+    total_rows = len(df)
+
+    for col in df.columns:
+        series = df[col]
+        missing_count = int(series.isna().sum())
+        missing_percent = round((missing_count / total_rows) * 100, 2) if total_rows > 0 else 0.0
+
+        profiles.append(ColumnProfile(
+            name=col,
+            dtype=str(series.dtype),
+            missing_count=missing_count,
+            missing_percent=missing_percent,
+            unique_count=int(series.nunique()),
+        ))
+
+    return profiles
 
 
 @app.post("/profile", dependencies=[Depends(verify_api_key)])
