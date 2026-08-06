@@ -38,7 +38,16 @@ def root():
 def verify_api_key(x_api_key: str = Header(...)) -> None:
     if not API_KEY or x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
-    
+
+def has_whitespace_or_casing_issues(series: pd.Series) -> bool:
+    clean = series.dropna().astype(str)
+    if clean.empty:
+        return False
+
+    has_untrimmed = (clean != clean.str.strip()).any()
+    has_casing_dupes = clean.str.lower().nunique() < clean.nunique()
+    return bool(has_untrimmed or has_casing_dupes)
+
 
 def build_column_profiles(df: pd.DataFrame) -> list[ColumnProfile]:
     profiles = []
@@ -48,6 +57,7 @@ def build_column_profiles(df: pd.DataFrame) -> list[ColumnProfile]:
         series = df[col]
         missing_count = int(series.isna().sum())
         missing_percent = round((missing_count / total_rows) * 100, 2) if total_rows > 0 else 0.0
+        is_numeric = pd.api.types.is_numeric_dtype(series)
 
         profiles.append(ColumnProfile(
             name=col,
@@ -55,6 +65,8 @@ def build_column_profiles(df: pd.DataFrame) -> list[ColumnProfile]:
             missing_count=missing_count,
             missing_percent=missing_percent,
             unique_count=int(series.nunique()),
+            has_whitespace_issues=has_whitespace_or_casing_issues(series) if not is_numeric else False,
+            outlier_count=None,
         ))
 
     return profiles
