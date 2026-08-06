@@ -38,6 +38,19 @@ def root():
 def verify_api_key(x_api_key: str = Header(...)) -> None:
     if not API_KEY or x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    
+
+def detect_outliers_iqr(series: pd.Series) -> int:
+    clean = series.dropna()
+    if len(clean) < 4:
+        return 0
+    q1 = clean.quantile(0.25)
+    q3 = clean.quantile(0.75)
+    iqr = q3 - q1
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    return int(((clean < lower) | (clean > upper)).sum())
+
 
 def has_whitespace_or_casing_issues(series: pd.Series) -> bool:
     clean = series.dropna().astype(str)
@@ -66,14 +79,14 @@ def build_column_profiles(df: pd.DataFrame) -> list[ColumnProfile]:
             missing_percent=missing_percent,
             unique_count=int(series.nunique()),
             has_whitespace_issues=has_whitespace_or_casing_issues(series) if not is_numeric else False,
-            outlier_count=None,
+            outlier_count=detect_outliers_iqr(series) if is_numeric else None,
         ))
 
     return profiles
 
 
 @app.post("/profile", response_model=ProfileReport, dependencies=[Depends(verify_api_key)])
-async def profile_csv(file: UploadFile = File(...)):
+async def profile_csv(file: UploadFile = File(...), include_outliers: bool = True):
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
@@ -92,10 +105,16 @@ async def profile_csv(file: UploadFile = File(...)):
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV has no rows")
 
+    profiles = build_column_profiles(df)
+
+    if not include_outliers:
+        for profile in profiles:
+            profile.outlier_count = None
+
     return ProfileReport(
         rows=len(df),
         columns=len(df.columns),
         duplicate_rows=int(df.duplicated().sum()),
         column_names=df.columns.tolist(),
-        column_profiles=build_column_profiles(df),
+        column_profiles=profiles,
     )
